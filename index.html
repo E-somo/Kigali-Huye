@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"> 
+    <script src="https://unpkg.com/sweetalert/dist/sweetalert.min.js"></script>
+    <script src="https://unpkg.com/sweetalert/dist/sweetalert.min.js"></script>
+    <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+ 
+    <title>Reservation Platform - Car-1</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+        }
+        .container {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 10px;
+            padding: 20px;
+        }
+        .place {
+            padding: 20px;
+            text-align: center;
+            border: 1px solid #ccc;
+            cursor: pointer;
+        }
+        .busy {
+            background-color: #ffcccc;
+        }
+        .free {
+            background-color: #ccffcc;
+        }
+        #totalFreeSpaces {
+            font-size: 24px;
+            margin: 20px;
+        }
+    </style>
+</head>
+<body>
+
+<h1>Reservation Platform - Car-1</h1>
+<div id="totalFreeSpaces">Total Free Spaces: 0</div>
+<div class="container" id="placesContainer"></div>
+
+<!-- Car Data Submission Form -->
+<form id="carForm">
+    <label for="selectedCar">Select a Car:</label>
+    <select id="selectedCar" name="selectedCar" required>
+        <option value="">--Please select a car--</option>
+        <option value="Car 1">Car 1</option>
+        <option value="Car 2">Car 2</option>
+        <option value="Car 3">Car 3</option>
+        <option value="Car 4">Car 4</option>
+        <option value="Car 5">Car 5</option>
+        <option value="Car 6">Car 6</option>
+        <option value="Car 7">Car 7</option>
+        <option value="Car 8">Car 8</option>
+        <option value="Car 9">Car 9</option>
+        <option value="Car 10">Car 10</option>
+    </select>
+
+    <label for="data1">Data 1:</label>
+    <input type="text" id="data1" name="data1" required>
+
+    <label for="data2">Data 2:</label>
+    <input type="text" id="data2" name="data2" required>
+
+    <label for="data3">Data 3:</label>
+    <input type="text" id="data3" name="data3" required>
+
+    <button type="submit">Submit Car Data</button>
+</form>
+
+<!-- Button to submit data to Google Sheets -->
+<button id="submitToGoogleSheets">Submit to Google Sheets</button>
+
+<script type="text/javascript"> 
+
+
+//let placesData = `Car-1\tPlace 001: busy by078878xxx\tPlace 002: busy by078878xxx\tPlace 003: busy by078878xxx\tPlace 004: free\tPlace 005: free\tPlace 006: free\tPlace 007: busy by078878xxx\tPlace 008: busy by078878xxx\tPlace 009: free\tPlace 010: busy by078878xxx\tPlace 011: busy by078878xxx\tPlace 012: free\tPlace 013: busy by078878xxx\tPlace 014: free\tPlace 015: busy by078878xxx\tPlace 016: free\tPlace 017: free\tPlace 018: free\tPlace 019: busy by078878xxx\tPlace 020: busy by078878xxx\tPlace 021: free\tPlace 022: free\tPlace 023: free\tPlace 024: free\tPlace 025: free\tPlace 026: free\tPlace 027: busy by078878xxx\tPlace 028: free\tPlace 029: free\tPlace 030: free`;
+let placesData = " Na"
+        google.charts.load('current', {
+            'packages': ['table']
+        });
+        google.charts.setOnLoadCallback(init);
+
+        function init() {
+            const sheetID = '1hj_0FnvZIRekyh1r-bT1kxXhG68I35LH9CT9jppjw6Q'; // Your sheet ID
+            const range = 'D:D'; // Changed to column D
+
+            // Fetch data from Google Sheets
+            const queryString = `https://docs.google.com/spreadsheets/d/${sheetID}/gviz/tq?tqx=out:json&tq&range=${range}`;
+            fetch(queryString)
+                .then(response => response.text())
+                .then(data => {
+                    // Parse the JSON response
+                    const json = JSON.parse(data.substr(47).slice(0, -2));
+                    const rows = json.table.rows;
+
+                    // Filter for elements starting with "Car-1"
+                    const filteredCars = rows.map(row => row.c[0]?.v).filter(value => value && value.startsWith('Car-1'));
+
+                    // Get the last added element
+                    const lastCar = filteredCars[filteredCars.length - 1];
+                    if (lastCar) {
+                        // Replace "place" with "\tplace"
+                        const updatedCar = lastCar.replace(/Place/g, "\tPlace");
+
+                        // Save to local storage
+                        localStorage.setItem('lastCar', updatedCar);
+                             
+                        placesData=updatedCar;
+                        display()
+                        // Show in SweetAlert
+                        swal({
+                            title: "Last Car Element",
+                            text: updatedCar,
+                            icon: "success",
+                        });
+                    } else {
+                        swal({
+                            title: "No Car Found",
+                            text: "No elements starting with 'Car-1' were found.",
+                            icon: "error",
+                        });
+                    }
+                })
+                .catch(err => {
+                    console.error("Error fetching data: ", err);
+                    swal({
+                        title: "Error",
+                        text: "Failed to fetch data from Google Sheets.",
+                        icon: "error",
+                    });
+                });
+        }
+
+
+    function display() {
+    let freePlacesCount = 0;
+
+    // Function to create the places
+    function renderPlaces() {
+        const container = document.getElementById('placesContainer');
+        const placesArray = placesData.split('\t').slice(1); // Skip the Car-1 header
+
+        placesArray.forEach(place => {
+            const [placeName, status] = place.split(':');
+            const placeDiv = document.createElement('div');
+            placeDiv.className = 'place ' + (status.includes('busy') ? 'busy' : 'free');
+            placeDiv.textContent = `${placeName.trim()}: ${status.trim()}`;
+            
+            if (status.includes('free')) {
+                freePlacesCount++;
+                placeDiv.addEventListener('click', () => {
+                    const userName = prompt("Enter your name to reserve this place:");
+                    if (userName) {
+                        const reservationDetails = `${placeName.trim()}: reserved by ${userName}`;
+                        placeDiv.className = 'place busy';
+                        placeDiv.textContent = reservationDetails;
+                        updateTotalFreeSpaces();
+                        updatePlacesData(placeName.trim(), userName);
+                    }
+                });
+            }
+            
+            container.appendChild(placeDiv);
+        });
+
+        updateTotalFreeSpaces();
+    }
+
+    // Function to update total free spaces count
+    function updateTotalFreeSpaces() {
+        const totalFreeSpacesDiv = document.getElementById('totalFreeSpaces');
+        totalFreeSpacesDiv.textContent = `Total Free Spaces: ${freePlacesCount}`;
+    }
+
+    // Function to update places data
+    function updatePlacesData(place, userName) {
+        console.log(`Updating: ${place} is now reserved by ${userName}`);
+        
+        // Update the placesData string
+        placesData = placesData.replace(new RegExp(`(${place}: free)`, 'g'), `${place}: busy by: ${userName}`);
+
+        // Set the updated placesData into the car submission form's data3 field
+        document.getElementById('data3').value = placesData; 
+    }
+
+    // Function to submit placesData to Google Sheets
+    async function submitToGoogleSheets() {
+        const formData = new FormData();
+        formData.append('placesData', placesData); // Add the placesData to the form data
+
+        const response = await fetch('https://script.google.com/macros/s/AKfycbwh5Ay0kbd-_1_zT2oB4zb57u3PbFynUm7OvSx6fAZJ2sQ3a_JWjZEoY2n6bH58XCw/exec', {
+            method: 'POST',
+            body: formData
+        });
+
+        const result = await response.text();
+        alert(result);
+    }
+
+    // Event listener for the submit button of the car form
+    document.getElementById('carForm').onsubmit = async function (e) {
+        e.preventDefault();
+
+        // Check if a car is selected
+        const selectedCar = document.getElementById('selectedCar').value;
+        if (!selectedCar) {
+            alert('No car selected. Please select a car before submitting.');
+            return; // Stop form submission
+        }
+
+        const formData = new FormData(e.target);
+        const response = await fetch('https://script.google.com/macros/s/AKfycbwh5Ay0kbd-_1_zT2oB4zb57u3PbFynUm7OvSx6fAZJ2sQ3a_JWjZEoY2n6bH58XCw/exec', {
+            method: 'POST',
+            body: formData
+        });
+
+        const result = await response.text();
+        alert(result);
+    };
+
+    // Event listener for the submit button
+    document.getElementById('submitToGoogleSheets').addEventListener('click', submitToGoogleSheets);
+
+    // Call the function to render places
+    renderPlaces(); 
+} 
+
+display() 
+</script>
+
+</body>
+</html>
